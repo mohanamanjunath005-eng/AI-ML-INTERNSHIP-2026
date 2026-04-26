@@ -102,13 +102,21 @@ def parse_tool_argument(value):
 
 
 def clean_response(text):
-    """Remove tool parameter JSON blocks from response text."""
+    """Remove tool parameter JSON blocks and technical details from response text."""
     # Remove JSON blocks like {"name": "calculate_emi", "parameters": {...}}
     text = re.sub(r'\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"parameters"\s*:\s*\{.*?\}\s*\}', '', text, flags=re.DOTALL)
-    # Remove lines with tool usage examples
+    # Remove lines that are pure code/function examples
     lines = text.split('\n')
-    filtered_lines = [line for line in lines if not re.match(r'^\s*(calculate_emi|Using|Here\'s|If you want)', line)]
-    return '\n'.join(filtered_lines).strip()
+    filtered_lines = []
+    for line in lines:
+        # Skip lines that are pure code/function calls
+        if re.match(r'^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(.*\)\s*$', line):
+            continue
+        filtered_lines.append(line)
+    result = '\n'.join(filtered_lines).strip()
+    # Remove excessive newlines
+    result = re.sub(r'\n{3,}', '\n\n', result)
+    return result
 
 # Sidebar
 st.sidebar.header("Loan Calculator")
@@ -157,14 +165,15 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # System prompt
-system_prompt = """You are a helpful loan EMI advisor. Follow these rules:
+system_prompt = """You are a loan EMI advisor. Answer questions about loans, EMI, interest rates, principal, tenure, and affordability.
 
-1. Simple questions (like "what is a loan?" or "what is principal?"): Answer directly and concisely with definitions and explanations. Do NOT ask for more details.
-2. EMI calculation questions (like "calculate EMI for..." or "what's my EMI?"): Use the calculate_emi tool for accurate math.
-3. Affordability/advice questions: Provide financial guidance based on the given information.
-4. Non-loan/finance questions: Reply with "Invalid - This question is not related to loans or finance. Please ask loan-related questions only."
+RULES:
+- Definition questions (what is loan, what is principal, etc): Answer in 1-2 sentences directly. No extra context.
+- EMI/calculation questions: Use the calculate_emi tool. NEVER show tool parameters or function details to the user.
+- Non-loan questions: Say "Invalid - This is not a loan/finance question."
 
-Always be concise and accurate. Answer directly without asking for extra information unless essential."""
+IMPORTANT: NEVER show tool calls, function parameters, JSON, or code to the user. Only show final answers.
+Be brief. Answer immediately without asking for more details."""
 
 # Chat input
 if prompt := st.chat_input("Ask me about loans and EMI..."):
@@ -229,8 +238,12 @@ if prompt := st.chat_input("Ask me about loans and EMI..."):
             response = ollama.chat(model='llama3.2:1b', tools=tools, messages=messages)
 
         ai_response = response.message.content
-        # Clean tool parameters from response
-        ai_response = clean_response(ai_response)
+        # Clean any remaining tool parameters or technical details
+        if ai_response:
+            ai_response = clean_response(ai_response)
+            # If response is empty after cleaning, handle gracefully
+            if not ai_response or ai_response.isspace():
+                ai_response = "I was unable to generate a proper response. Please try again."
     except Exception as e:
         ai_response = f"Sorry, I'm having trouble connecting to the AI. Error: {str(e)}. Please try again later."
     
