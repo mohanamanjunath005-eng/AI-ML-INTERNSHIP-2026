@@ -165,21 +165,26 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # System prompt
-system_prompt = """You are a loan and EMI advisor. Answer all loan-related questions clearly and directly.
+system_prompt = """You are a professional loan and EMI advisor.
 
-INSTRUCTIONS:
-1. Loan definition/concept questions (what is loan, what is principal, what is EMI, what is interest, etc):
-   - ANSWER DIRECTLY with a clear, concise explanation in 1-2 sentences
-   - Example: User asks "what is a loan?" → Answer: "A loan is money borrowed from a lender that must be repaid with interest over time."
+YOUR JOB: Answer ALL questions about loans, EMI, interest, principal, tenure, affordability, and finance.
 
-2. EMI calculation questions (calculate EMI for, what's my EMI, EMI for loan amount, etc):
-   - Use the calculate_emi tool with principal, annual_rate, and months
-   - Show only the final EMI amount, never show tool details or parameters
+EXAMPLES OF QUESTIONS YOU MUST ANSWER:
+- "What is a loan?" → Explain: A loan is borrowed money that must be repaid with interest
+- "What is principal?" → Explain: Principal is the original amount borrowed
+- "What is EMI?" → Explain: EMI is monthly payment to repay a loan
+- "What is interest rate?" → Explain: Interest rate is the cost of borrowing money
 
-3. Non-loan questions (about weather, sports, politics, etc):
-   - Reply: "Invalid - This is not a loan/finance question."
+HOW TO RESPOND:
+1. If user asks ABOUT loans/finance/EMI/principal/interest: ANSWER directly with 1-2 sentence explanation
+2. If user asks to CALCULATE EMI: Use the calculate_emi tool silently, show only the result
+3. Only if user asks about COMPLETELY UNRELATED topics (weather, sports, politics): Say "Invalid - This is not a loan/finance question."
 
-CRITICAL: Never mention tools, parameters, JSON, or functions. Always answer loan questions directly and naturally."""
+CRITICAL RULES:
+- NEVER say "Invalid" for loan-related questions
+- ALWAYS answer definition questions directly
+- NEVER show tool parameters, JSON, or technical details
+- Be friendly and professional"""
 
 # Chat input
 if prompt := st.chat_input("Ask me about loans and EMI..."):
@@ -250,6 +255,22 @@ if prompt := st.chat_input("Ask me about loans and EMI..."):
             # If response is empty after cleaning, handle gracefully
             if not ai_response or ai_response.isspace():
                 ai_response = "I was unable to generate a proper response. Please try again."
+            
+            # Check if model incorrectly marked a loan question as Invalid
+            loan_keywords = ['loan', 'emi', 'principal', 'interest', 'rate', 'tenure', 'monthly', 'repay']
+            is_loan_question = any(keyword in prompt.lower() for keyword in loan_keywords)
+            is_invalid_response = 'invalid' in ai_response.lower() and 'not' in ai_response.lower()
+            
+            if is_loan_question and is_invalid_response:
+                # Model incorrectly rejected a loan question, try again with clearer instruction
+                retry_messages = [
+                    {"role": "system", "content": "You are a helpful loan advisor. The previous answer was wrong. User asked about loans/EMI/principal/interest which are valid topics. ANSWER THE QUESTION DIRECTLY WITHOUT SAYING INVALID."},
+                    {"role": "user", "content": prompt}
+                ]
+                retry_response = ollama.chat(model='llama3.2:1b', tools=tools, messages=retry_messages)
+                ai_response = retry_response.message.content
+                if ai_response:
+                    ai_response = clean_response(ai_response)
     except Exception as e:
         ai_response = f"Sorry, I'm having trouble connecting to the AI. Error: {str(e)}. Please try again later."
     
