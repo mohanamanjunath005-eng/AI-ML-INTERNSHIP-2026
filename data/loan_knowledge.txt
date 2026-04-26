@@ -1,0 +1,19 @@
+EMI means Equated Monthly Installment.
+
+Principal is the original loan amount borrowed.
+
+Interest is the cost charged by lender.
+
+Tenure means repayment duration in months or years.
+
+Lower tenure means higher EMI but lower total interest.
+
+Longer tenure means lower EMI but higher total interest.
+
+Fixed interest rate remains same.
+
+Floating interest rate changes with market.
+
+Prepayment means paying part/full loan early.
+
+Good credit score may help lower rates.
