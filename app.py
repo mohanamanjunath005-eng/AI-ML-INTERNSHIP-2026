@@ -100,6 +100,16 @@ def parse_tool_argument(value):
         return int(cleaned)
     return value
 
+
+def clean_response(text):
+    """Remove tool parameter JSON blocks from response text."""
+    # Remove JSON blocks like {"name": "calculate_emi", "parameters": {...}}
+    text = re.sub(r'\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"parameters"\s*:\s*\{.*?\}\s*\}', '', text, flags=re.DOTALL)
+    # Remove lines with tool usage examples
+    lines = text.split('\n')
+    filtered_lines = [line for line in lines if not re.match(r'^\s*(calculate_emi|Using|Here\'s|If you want)', line)]
+    return '\n'.join(filtered_lines).strip()
+
 # Sidebar
 st.sidebar.header("Loan Calculator")
 
@@ -212,6 +222,8 @@ if prompt := st.chat_input("Ask me about loans and EMI..."):
             response = ollama.chat(model='llama3.2:1b', tools=tools, messages=messages)
 
         ai_response = response.message.content
+        # Clean tool parameters from response
+        ai_response = clean_response(ai_response)
     except Exception as e:
         ai_response = f"Sorry, I'm having trouble connecting to the AI. Error: {str(e)}. Please try again later."
     
