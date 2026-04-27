@@ -76,7 +76,7 @@ Suggested better colors, spacing, buttons, card layout, and responsive design im
 
 ---
 
-## A bug your AI introduced
+## A bug introduced by AI
 
 **Date: Sunday, 26 April 2026**
 
@@ -91,7 +91,7 @@ Used `parseFloat()` / `Number()` before calculation.
 
 ---
 
-## A design choice you made against AI suggestion
+## A design choice made against AI suggestion
 
 **Date: Sunday, 26 April 2026**
 
